@@ -140,37 +140,53 @@ class Value:
 
     def __pow__(self, n: Number) -> "Value":
         """self ** n for scalar n. Grad: n * self.data ** (n - 1)."""
-        raise NotImplementedError
+        out = Value(self.data ** n,(self,), f"**{n}")
+        def _backward():
+            self.grad += n * (self.data ** (n-1)) * out.grad
+        out._backward = _backward
+        return out
 
     def __truediv__(self, other: Union["Value", Number]) -> "Value":
         """self / other — build from __mul__ and __pow__(-1)."""
-        raise NotImplementedError
+        return self*other ** -1 
 
     def __rtruediv__(self, other: Union["Value", Number]) -> "Value":
-        raise NotImplementedError
+        return other * self ** -1
 
     def relu(self) -> "Value":
         """max(0, x). Grad flows where data > 0, zero elsewhere."""
-        raise NotImplementedError
+        out = Value(max(0,self.data), (self,),"relu")
+        def _backward():
+            self.grad += (out.data > 0) * out.grad
+        out._backward = _backward
+        return out
 
     def exp(self) -> "Value":
         """e^x. Grad: out.data * out.grad."""
-        raise NotImplementedError
+        out = Value(math.exp(self.data),(self,),"exp")
+        def _backward():
+            self.grad += out.data * out.grad
+        out._backward = _backward
+        return out
 
     def log(self) -> "Value":
         """ln(x). Grad: (1/x) * out.grad. Assumes x > 0."""
-        raise NotImplementedError
+        out = Value(math.log(self.data),(self,),"log")
+        def _backward():
+            self.grad += (1/self.data)*out.grad
+        out._backward = _backward
+        return out
 
 
 # Convenience wrappers — implement once Value is up.
 def sigmoid(x: Value) -> Value:
     """Compose sigmoid from exp and division. No special-case backward."""
-    raise NotImplementedError
-
+    return Value(1.0)/(Value(1.0)+(-x).exp())
 
 def tanh(x: Value) -> Value:
     """Compose tanh from exp. (exp(2x) - 1) / (exp(2x) + 1)."""
-    raise NotImplementedError
+    e2x = (Value(2.0)*x).exp()
+    return (e2x - Value(1.0))/(e2x+Value(1.0))
 
 
 # -----------------------------------------------------------------------------
