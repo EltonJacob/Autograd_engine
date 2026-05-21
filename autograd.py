@@ -200,27 +200,45 @@ class Neuron:
         # TODO: self.w = [Value(random.uniform(-1, 1)) for _ in range(n_in)]
         # TODO: self.b = Value(0.0)
         # TODO: self.activation = activation  # "relu" | "sigmoid" | "tanh" | "linear"
-        raise NotImplementedError
+        random.seed(seed)
+        self.b = Value(0.0)
+        self.w = [Value(random.uniform(-1,1)) for _ in range(n_in)]
+        self.activation = activation
 
     def __call__(self, x: List[Union[Value, Number]]) -> Value:
         """Return activation(sum(wi * xi) + b)."""
-        raise NotImplementedError
+        act = sum(wi * xi for wi,xi in zip(self.w,x))+self.b
+        if self.activation == "relu":
+            return act.relu()
+        elif self.activation == "tanh":
+            return tanh(act)
+        elif self.activation == "sigmoid":
+            return sigmoid(act)
+        elif self.activation == "linear":
+            return act
+    
 
     def parameters(self) -> List[Value]:
-        raise NotImplementedError
+        return self.w + [self.b]
 
 
 class Layer:
     """A list of Neurons sharing the same input."""
 
     def __init__(self, n_in: int, n_out: int, activation: str = "relu"):
-        raise NotImplementedError
+        self.n_in = n_in
+        self.n_out = n_out
+        self.activation = activation
+        self.neurons = [Neuron(n_in,activation) for _ in range(n_out)]
 
     def __call__(self, x: List[Union[Value, Number]]) -> List[Value]:
-        raise NotImplementedError
+        return [neuron(x) for neuron in self.neurons]
 
     def parameters(self) -> List[Value]:
-        raise NotImplementedError
+        result = []
+        for neuron in self.neurons:
+            result.extend(neuron.parameters())
+        return result
 
 
 class MLP:
@@ -230,14 +248,26 @@ class MLP:
                  activations: List[str]):
         # TODO: build self.layers using Layer(n_in, layer_dims[0], activations[0]),
         # TODO: then Layer(layer_dims[i-1], layer_dims[i], activations[i]).
-        raise NotImplementedError
+        self.n_in = n_in
+        self.layer_dims = layer_dims
+        self.activations = activations
+        self.layers = []
+        for i in range(1,len(layer_dims)):
+            self.layers.append(Layer(layer_dims[i-1],layer_dims[i],activations[i]))
 
     def __call__(self, x: List[Union[Value, Number]]) -> Union[Value, List[Value]]:
         """Returns a single Value if the last layer has one neuron, else list."""
-        raise NotImplementedError
+        for layer in self.layers:
+            x = layer(x)
+        
+        return x[0] if len(x)==1 else x
+
 
     def parameters(self) -> List[Value]:
-        raise NotImplementedError
+        result = []
+        for layer in self.layers:
+            result.extend(layer.parameters())
+        return result
 
 
 def train(model: MLP, X: List[List[Number]], y: List[Number],
@@ -255,7 +285,18 @@ def train(model: MLP, X: List[List[Number]], y: List[Number],
     `loss`: 'mse' for sum-of-squared-errors, 'bce' for binary cross-entropy.
     Returns the loss-per-epoch list.
     """
-    raise NotImplementedError
+    result = []
+    for epoch in range(epochs):
+        for p in model.parameters():
+            p.grad = 0.0
+        prediction= [model(x) for x in X]
+        loss_val = sum((pred - Value(yi))**2 for pred,yi in zip(prediction,y))
+        loss_val.backward()
+        for p in model.parameters():
+            p.data -= lr * p.grad
+        result.append(loss_val.data)
+    return result
+
 
 
 # -----------------------------------------------------------------------------
